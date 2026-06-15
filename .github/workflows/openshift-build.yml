@@ -1,0 +1,92 @@
+name: Provision OpenShift Lab
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: 'Name of your cluster (e.g., dev-lab-1)'
+        required: true
+        type: string
+      worker_count:
+        description: 'Number of Worker Nodes'
+        required: true
+        default: '3'
+        type: choice
+        options:
+          - '0' # Compact cluster
+          - '2'
+          - '3'
+      worker_size:
+        description: 'Worker Node Size (GCP Machine Type)'
+        required: true
+        default: 'e2-standard-4'
+        type: choice
+        options:
+          - 'e2-standard-4' # 4 vCPU / 16 GB RAM
+          - 'e2-standard-8' # 8 vCPU / 32 GB RAM
+          - 'e2-highmem-8'  # 8 vCPU / 64 GB RAM
+      gcp_region:
+        description: 'GCP Region'
+        required: true
+        default: 'us-central1'
+        type: choice
+        options:
+          - 'us-central1'
+          - 'us-east1'
+
+jobs:
+  build-cluster:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download OpenShift Installer
+        run: |
+          wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-install-linux.tar.gz
+          tar xvf openshift-install-linux.tar.gz
+          sudo mv openshift-install /usr/local/bin/
+
+      - name: Generate install-config.yaml
+        env:
+          CLUSTER_NAME: ${{ inputs.cluster_name }}
+          WORKER_COUNT: ${{ inputs.worker_count }}
+          WORKER_MACHINE_TYPE: ${{ inputs.worker_size }}
+          GCP_REGION: ${{ inputs.gcp_region }}
+          BASE_DOMAIN: ${{ secrets.GCP_BASE_DOMAIN }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          PULL_SECRET: ${{ secrets.RH_PULL_SECRET }}
+          SSH_PUB_KEY: ${{ secrets.SSH_PUB_KEY }}
+        run: |
+          mkdir workspace
+          envsubst < install-config-template.yaml > workspace/install-config.yaml
+          
+      - name: Authenticate with GCP
+        run: |
+          echo "${{ secrets.GCP_SA_CREDENTIALS }}" > /tmp/gcp.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp.json" >> $GITHUB_ENV
+
+      - name: Run OpenShift Installer
+        run: |
+          openshift-install create cluster --dir=workspace --log-level=info
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Upload Cluster Metadata to GCS
+        run: |
+          gsutil cp workspace/metadata.json gs://${{ secrets.GCP_STATE_BUCKET }}/${{ inputs.cluster_name }}/metadata.json
+
+      - name: Output Login Credentials
+        if: always()
+        run: |
+          echo "======================================================"
+          echo "CLUSTER DEPLOYMENT COMPLETE"
+          echo "======================================================"
+          echo "Web Console URL: $(cat workspace/auth/console-url)"
+          echo "Username: kubeadmin"
+          echo "Password: $(cat workspace/auth/kubeadmin-password)"
+          echo "------------------------------------------------------"
+          echo "To use the CLI, log into the Web Console, click your"
+          echo "username in the top right, and select 'Copy login command'."
+          echo "======================================================"

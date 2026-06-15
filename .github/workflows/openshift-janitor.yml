@@ -1,0 +1,57 @@
+name: OpenShift Lab Janitor (72-Hour Cap)
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+jobs:
+  cleanup-expired-clusters:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download OpenShift Installer
+        run: |
+          wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-install-linux.tar.gz
+          tar xvf openshift-install-linux.tar.gz
+          sudo mv openshift-install /usr/local/bin/
+
+      - name: Authenticate with GCP
+        run: |
+          echo "${{ secrets.GCP_SA_CREDENTIALS }}" > /tmp/gcp.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp.json" >> $GITHUB_ENV
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Find and Destroy Expired Clusters
+        run: |
+          BUCKET="gs://${{ secrets.GCP_STATE_BUCKET }}"
+          NOW=$(date +%s)
+          MAX_AGE_SECONDS=$((72 * 3600)) 
+
+          echo "Checking for clusters older than 72 hours in $BUCKET..."
+
+          gsutil ls "$BUCKET/**/metadata.json" | while read -r metadata_path; do
+            FILE_TIME_RAW=$(gsutil stat "$metadata_path" | grep "Update time:" | awk '{print $3, $4, $5, $6, $7}')
+            FILE_TIME=$(date -d "$FILE_TIME_RAW" +%s)
+            AGE=$((NOW - FILE_TIME))
+
+            CLUSTER_NAME=$(echo "$metadata_path" | awk -F'/' '{print $(NF-1)}')
+
+            if [ "$AGE" -gt "$MAX_AGE_SECONDS" ]; then
+              echo "⚠️ Cluster '$CLUSTER_NAME' is older than 72 hours. Initiating destruction..."
+              
+              mkdir -p "workspace_$CLUSTER_NAME"
+              gsutil cp "$metadata_path" "workspace_$CLUSTER_NAME/metadata.json"
+              
+              openshift-install destroy cluster --dir="workspace_$CLUSTER_NAME" --log-level=info
+              
+              gsutil rm -r "$BUCKET/$CLUSTER_NAME/"
+              echo "✅ Cluster '$CLUSTER_NAME' successfully destroyed."
+            else
+              echo "ℹ️ Cluster '$CLUSTER_NAME' is safe. Age is $((AGE / 3600)) hours."
+            fi
+          done

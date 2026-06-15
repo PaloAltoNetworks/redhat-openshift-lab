@@ -1,0 +1,27 @@
+apiVersion: v1
+baseDomain: ${BASE_DOMAIN}
+compute:
+- architecture: amd64
+  hyperthreading: Enabled
+  name: worker
+  platform:
+    gcp:
+      type: ${WORKER_MACHINE_TYPE}
+  replicas: ${WORKER_COUNT}
+controlPlane:
+  architecture: amd64
+  hyperthreading: Enabled
+  name: master
+  platform:
+    gcp:
+      type: e2-standard-4
+  replicas: 3
+metadata:
+  name: ${CLUSTER_NAME}
+platform:
+  gcp:
+    projectID: ${GCP_PROJECT_ID}
+    region: ${GCP_REGION}
+pullSecret: '${PULL_SECRET}'
+sshKey: |
+  ${SSH_PUB_KEY}
