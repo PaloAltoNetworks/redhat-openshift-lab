@@ -10,7 +10,7 @@ on:
       worker_count:
         description: 'Number of Worker Nodes'
         required: true
-        default: '3'
+        default: '2'
         type: choice
         options:
           - '0' # Compact cluster
@@ -33,6 +33,11 @@ on:
         options:
           - 'us-central1'
           - 'us-east1'
+      acknowledgment:
+        description: 'NOTE: This cluster will be automatically deleted in 72 hours. Please reach out to Shrey Raut via Slack if you need it running longer. Acknowledge the same to continue the build.'
+        required: true
+        type: boolean
+        default: false
 
 jobs:
   build-cluster:
@@ -40,6 +45,13 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Verify Acknowledgment
+        run: |
+          if [ "${{ inputs.acknowledgment }}" != "true" ]; then
+            echo "Error: You must acknowledge the 72-hour deletion policy."
+            exit 1
+          fi
 
       - name: Download OpenShift Installer
         run: |
@@ -64,6 +76,7 @@ jobs:
       - name: Authenticate with GCP
         run: |
           echo "${{ secrets.GCP_SA_CREDENTIALS }}" > /tmp/gcp.json
+          echo "GOOGLE_CREDENTIALS=/tmp/gcp.json" >> $GITHUB_ENV
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp.json" >> $GITHUB_ENV
 
       - name: Run OpenShift Installer
@@ -74,11 +87,12 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Upload Cluster Metadata to GCS
+        if: always() 
         run: |
           gsutil cp workspace/metadata.json gs://${{ secrets.GCP_STATE_BUCKET }}/${{ inputs.cluster_name }}/metadata.json
 
       - name: Output Login Credentials
-        if: always()
+        if: success() 
         run: |
           echo "======================================================"
           echo "CLUSTER DEPLOYMENT COMPLETE"
