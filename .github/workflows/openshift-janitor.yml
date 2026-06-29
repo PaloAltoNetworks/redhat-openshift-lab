@@ -19,8 +19,12 @@ jobs:
           sudo mv openshift-install /usr/local/bin/
 
       - name: Authenticate with GCP
+        env:
+           # Safely assigning raw JSON to an env. variable
+           RAW_GCP_JSON: ${{ secrets.GCP_SA_CREDENTIALS }}
         run: |
-          echo "${{ secrets.GCP_SA_CREDENTIALS }}" > /tmp/gcp.json
+          echo "$RAW_GCP_JSON" > /tmp/gcp.json
+          
           echo "GOOGLE_CREDENTIALS=/tmp/gcp.json" >> $GITHUB_ENV
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp.json" >> $GITHUB_ENV
 
