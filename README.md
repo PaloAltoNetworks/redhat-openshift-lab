@@ -47,7 +47,7 @@ For security and simplicity, `kubeconfig` files are not distributed directly. To
 To manage GCP billing, this repository runs a continuous Janitor pipeline. 
 
 * **Maximum Lifespan:** 72 Hours.
-* **How it works:** When your cluster is built, its creation metadata is logged in a secure GCP bucket. Every 4 hours, the Janitor script checks this bucket. If your cluster is older than 72 hours, it will automatically trigger an `openshift-install destroy cluster` command.
+* **How it works:** When your cluster is built, its creation metadata is logged in a secure GCP bucket. Every 24 hours, the Janitor script checks this bucket. If your cluster is older than 72 hours, it will automatically trigger an `openshift-install destroy cluster` command.
 * **Warning:** There is no backup of your lab data. Please ensure any important application manifests or configurations are committed to version control before the 72-hour window expires.
 
 ---
