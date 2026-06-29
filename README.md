@@ -1,5 +1,5 @@
 # Red Hat OpenShift GCP Lab Builder
-[![Provision OpenShift Lab](https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY_NAME/actions/workflows/build.yml/badge.svg)](https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY_NAME/actions/workflows/build.yml)
+[![Provision OpenShift Lab](https://github.com/PaloAltoNetworks/redhat-openshift-lab/actions/workflows/build.yml/badge.svg)](https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY_NAME/actions/workflows/build.yml)
 
 Welcome to the self-service portal for provisioning ephemeral Red Hat OpenShift 4.x clusters on Google Cloud Platform (GCP). 
 
@@ -15,10 +15,9 @@ You do not need to clone this repository or run any Terraform/CLI commands local
 2. On the left sidebar, click on **Provision OpenShift Lab**.
 3. On the right side of the screen, click the **Run workflow** dropdown button.
 4. Fill out the form:
-   * **Cluster Name:** Provide a unique, identifiable name (e.g., `johndoe-test-1`).
-   * **Worker Count:** Select the number of worker nodes you need. *(Select `0` for a compact cluster where workloads run on the control plane).*
-   * **Worker Size:** Select the GCP machine type for your worker nodes.
-   * **GCP Region:** Choose the region closest to you.
+   * **Cluster Name:** Provide a unique, identifiable name (e.g., `shrey-ocp-test-1`).
+   * **Worker Count:** Select the number of worker nodes you need.
+   * **Acknowledgment:** You must check the box acknowledging the 72-hour automated deletion policy to proceed.
 5. Click the green **Run workflow** button. 
 
 *Note: The installation process typically takes 35 to 45 minutes to complete.*
