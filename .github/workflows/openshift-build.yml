@@ -93,7 +93,8 @@ jobs:
           echo "======================================================"
           echo "CLUSTER DEPLOYMENT COMPLETE"
           echo "======================================================"
-          echo "Web Console URL: $(cat workspace/auth/console-url)"
+          # Dynamically builds the URL using the standard OpenShift routing format
+          echo "Web Console URL: https://console-openshift-console.apps.${CLUSTER_NAME}.${BASE_DOMAIN}"
           echo "Username: kubeadmin"
           echo "Password: $(cat workspace/auth/kubeadmin-password)"
           echo "------------------------------------------------------"
