@@ -21,6 +21,7 @@ jobs:
       - name: Authenticate with GCP
         run: |
           echo "${{ secrets.GCP_SA_CREDENTIALS }}" > /tmp/gcp.json
+          echo "GOOGLE_CREDENTIALS=/tmp/gcp.json" >> $GITHUB_ENV
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp.json" >> $GITHUB_ENV
 
       - name: Set up Cloud SDK
@@ -42,7 +43,7 @@ jobs:
             CLUSTER_NAME=$(echo "$metadata_path" | awk -F'/' '{print $(NF-1)}')
 
             if [ "$AGE" -gt "$MAX_AGE_SECONDS" ]; then
-              echo "⚠️ Cluster '$CLUSTER_NAME' is older than 72 hours. Initiating destruction..."
+              echo "Cluster '$CLUSTER_NAME' is older than 72 hours. Initiating destruction..."
               
               mkdir -p "workspace_$CLUSTER_NAME"
               gsutil cp "$metadata_path" "workspace_$CLUSTER_NAME/metadata.json"
@@ -50,8 +51,8 @@ jobs:
               openshift-install destroy cluster --dir="workspace_$CLUSTER_NAME" --log-level=info
               
               gsutil rm -r "$BUCKET/$CLUSTER_NAME/"
-              echo "✅ Cluster '$CLUSTER_NAME' successfully destroyed."
+              echo "Cluster '$CLUSTER_NAME' successfully destroyed."
             else
-              echo "ℹ️ Cluster '$CLUSTER_NAME' is safe. Age is $((AGE / 3600)) hours."
+              echo "Cluster '$CLUSTER_NAME' is safe. Age is $((AGE / 3600)) hours."
             fi
           done

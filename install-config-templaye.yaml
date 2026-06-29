@@ -14,7 +14,7 @@ controlPlane:
   name: master
   platform:
     gcp:
-      type: e2-standard-4
+      type: e2-standard-4     #Min. requirement to run OCP control node
   replicas: 3
 metadata:
   name: ${CLUSTER_NAME}

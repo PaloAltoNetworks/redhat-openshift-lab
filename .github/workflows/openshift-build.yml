@@ -13,26 +13,8 @@ on:
         default: '2'
         type: choice
         options:
-          - '0' # Compact cluster
+          - '1'
           - '2'
-          - '3'
-      worker_size:
-        description: 'Worker Node Size (GCP Machine Type)'
-        required: true
-        default: 'e2-standard-4'
-        type: choice
-        options:
-          - 'e2-standard-4' # 4 vCPU / 16 GB RAM
-          - 'e2-standard-8' # 8 vCPU / 32 GB RAM
-          - 'e2-highmem-8'  # 8 vCPU / 64 GB RAM
-      gcp_region:
-        description: 'GCP Region'
-        required: true
-        default: 'us-central1'
-        type: choice
-        options:
-          - 'us-central1'
-          - 'us-east1'
       acknowledgment:
         description: 'NOTE: This cluster will be automatically deleted in 72 hours. Please reach out to Shrey Raut via Slack if you need it running longer. Acknowledge the same to continue the build.'
         required: true
@@ -63,15 +45,16 @@ jobs:
         env:
           CLUSTER_NAME: ${{ inputs.cluster_name }}
           WORKER_COUNT: ${{ inputs.worker_count }}
-          WORKER_MACHINE_TYPE: ${{ inputs.worker_size }}
-          GCP_REGION: ${{ inputs.gcp_region }}
+          # Hardcoding machine type and gcp region values
+          WORKER_MACHINE_TYPE: 'e2-standard-4'
+          GCP_REGION: 'us-central1'
           BASE_DOMAIN: ${{ secrets.GCP_BASE_DOMAIN }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           PULL_SECRET: ${{ secrets.RH_PULL_SECRET }}
           SSH_PUB_KEY: ${{ secrets.SSH_PUB_KEY }}
         run: |
           mkdir workspace
-          envsubst < install-config-template.yaml > workspace/install-config.yaml
+          envsubst < install-config-templaye.yaml > workspace/install-config.yaml
           
       - name: Authenticate with GCP
         run: |
