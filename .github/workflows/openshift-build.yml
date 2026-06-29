@@ -57,8 +57,11 @@ jobs:
           envsubst < install-config-templaye.yaml > workspace/install-config.yaml
           
       - name: Authenticate with GCP
+        env:
+           # Safely assigning raw JSON to an env. variable
+           RAW_GCP_JSON: ${{ secrets.GCP_SA_CREDENTIALS }}
         run: |
-          echo "${{ secrets.GCP_SA_CREDENTIALS }}" > /tmp/gcp.json
+          echo "$RAW_GCP_JSON" > /tmp/gcp.json
 
           # In GitHub Actions, if you just run export VAR=VALUE in one step, the next step in your pipeline will forget it completely. 
           # You have to write variables to a special system file called $GITHUB_ENV to make them stick around for the whole job.
