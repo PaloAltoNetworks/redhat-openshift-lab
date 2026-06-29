@@ -59,8 +59,16 @@ jobs:
       - name: Authenticate with GCP
         run: |
           echo "${{ secrets.GCP_SA_CREDENTIALS }}" > /tmp/gcp.json
-          echo "GOOGLE_CREDENTIALS=/tmp/gcp.json" >> $GITHUB_ENV
-          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp.json" >> $GITHUB_ENV
+
+          # In GitHub Actions, if you just run export VAR=VALUE in one step, the next step in your pipeline will forget it completely. 
+          # You have to write variables to a special system file called $GITHUB_ENV to make them stick around for the whole job.
+
+          # GOOGLE_APPLICATION_CREDENTIALS for gsutil, GOOGLE_CREDENTIALS for openshift-install
+          # >> appends a new line to the file without overwriting the file, > overwrites the file
+          
+          echo "GOOGLE_CREDENTIALS=/tmp/gcp.json" >> $GITHUB_ENV 
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp.json" >> $GITHUB_ENV 
+        
 
       - name: Run OpenShift Installer
         run: |
