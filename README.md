@@ -1,5 +1,5 @@
 # Red Hat OpenShift GCP Lab Builder
-[![Provision OpenShift Lab](https://github.com/PaloAltoNetworks/redhat-openshift-lab/actions/workflows/build.yml/badge.svg)](https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY_NAME/actions/workflows/build.yml)
+[![Provision OpenShift Lab](https://github.com/PaloAltoNetworks/redhat-openshift-lab/actions/workflows/build.yml/badge.svg)](https://github.com/PaloAltoNetworks/redhat-openshift-lab/actions/workflows/build.yml)
 
 Welcome to the self-service portal for provisioning ephemeral Red Hat OpenShift 4.x clusters on Google Cloud Platform (GCP). 
 
