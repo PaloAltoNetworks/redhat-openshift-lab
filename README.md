@@ -1,4 +1,5 @@
 # Red Hat OpenShift GCP Lab Builder
+[![Provision OpenShift Lab](https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY_NAME/actions/workflows/build.yml/badge.svg)](https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY_NAME/actions/workflows/build.yml)
 
 Welcome to the self-service portal for provisioning ephemeral Red Hat OpenShift 4.x clusters on Google Cloud Platform (GCP). 
 
@@ -51,19 +52,3 @@ To manage GCP billing, this repository runs a continuous Janitor pipeline.
 * **Warning:** There is no backup of your lab data. Please ensure any important application manifests or configurations are committed to version control before the 72-hour window expires.
 
 ---
-
-## Administrator Reference
-
-*This section is for repository maintainers.*
-
-### Required GitHub Secrets
-To successfully run these actions, the following secrets must be configured in `Settings -> Secrets and variables -> Actions`:
-* `GCP_SA_CREDENTIALS`: Service Account JSON with Compute, Network, DNS, and Storage Admin roles.
-* `GCP_PROJECT_ID`: Target GCP Project ID.
-* `GCP_BASE_DOMAIN`: Cloud DNS managed base domain.
-* `GCP_STATE_BUCKET`: GCS bucket name for the Janitor TTL tracker.
-* `RH_PULL_SECRET`: OpenShift pull secret from the Red Hat Hybrid Cloud Console.
-* `SSH_PUB_KEY`: Public SSH key for cluster node debugging.
-
-### Local Development
-If you must test the `openshift-install` command locally, ensure you are working within a dedicated `workspace/` directory. The `.gitignore` is heavily configured to prevent accidental commits of sensitive generated state files, private keys, and installer passwords. **Never commit `terraform.tfstate` or `kubeadmin-password` to this repository.**
