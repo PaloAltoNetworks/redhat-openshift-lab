@@ -56,22 +56,24 @@ jobs:
           mkdir workspace
           envsubst < install-config-templaye.yaml > workspace/install-config.yaml
           
-      - name: Authenticate with GCP
-        env:
-           # Safely assigning raw JSON to an env. variable
-           RAW_GCP_JSON: ${{ secrets.GCP_SA_CREDENTIALS }}
+      - name: Authenticate with Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_CREDENTIALS }}'
+          
+      - name: Map Credentials for OpenShift
         run: |
-          echo "$RAW_GCP_JSON" > /tmp/gcp.json
+          # The step above automatically generated the file and set GOOGLE_APPLICATION_CREDENTIALS.
+          # GOOGLE_APPLICATION_CREDENTIALS for gsutil, GOOGLE_CREDENTIALS for openshift-install
+          # Now, we just tell the OpenShift installer to look at that exact same file. 
+          # >> appends a new line to the file without overwriting the file, > overwrites the file
+          
+          echo "GOOGLE_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" >> $GITHUB_ENV
+
 
           # In GitHub Actions, if you just run export VAR=VALUE in one step, the next step in your pipeline will forget it completely. 
           # You have to write variables to a special system file called $GITHUB_ENV to make them stick around for the whole job.
-
-          # GOOGLE_APPLICATION_CREDENTIALS for gsutil, GOOGLE_CREDENTIALS for openshift-install
-          # >> appends a new line to the file without overwriting the file, > overwrites the file
-          
-          echo "GOOGLE_CREDENTIALS=/tmp/gcp.json" >> $GITHUB_ENV 
-          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp.json" >> $GITHUB_ENV 
-        
 
       - name: Run OpenShift Installer
         run: |
