@@ -34,7 +34,18 @@ jobs:
             echo "Error: You must acknowledge the 72-hour deletion policy."
             exit 1
           fi
-
+      - name: DIAGNOSTIC - Check Credential File
+        run: |
+          echo "Checking GOOGLE_APPLICATION_CREDENTIALS path: $GOOGLE_APPLICATION_CREDENTIALS"
+          if [ -s "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+            echo "✅ SUCCESS: The GCP JSON file exists and has data in it."
+            # Print the first few characters (safe) to prove it's a JSON file
+            head -c 15 "$GOOGLE_APPLICATION_CREDENTIALS"
+            echo "..."
+          else
+            echo "❌ ERROR: The GCP JSON file is completely EMPTY!"
+          fi
+          
       - name: Download OpenShift Installer
         run: |
           wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-install-linux.tar.gz
@@ -68,7 +79,7 @@ jobs:
           # GOOGLE_APPLICATION_CREDENTIALS for gsutil, GOOGLE_CREDENTIALS for openshift-install
           # Now, we just tell the OpenShift installer to look at that exact same file. 
           # >> appends a new line to the file without overwriting the file, > overwrites the file
-          
+
           echo "GOOGLE_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" >> $GITHUB_ENV
 
 
