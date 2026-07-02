@@ -89,7 +89,12 @@ jobs:
 
       - name: Output Login Credentials
         if: success() 
+        env:
+          BASE_DOMAIN: ${{ secrets.GCP_BASE_DOMAIN }}
         run: |
+          # Pull the cluster name from the metadata file the installer leaves behind
+          CLUSTER_NAME=$(jq -r .clusterName workspace/metadata.json)
+
           echo "======================================================"
           echo "CLUSTER DEPLOYMENT COMPLETE"
           echo "======================================================"
