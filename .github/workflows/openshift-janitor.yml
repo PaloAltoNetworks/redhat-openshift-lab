@@ -58,33 +58,58 @@ jobs:
             CLUSTER_NAME=$(echo "$metadata_path" | awk -F'/' '{print $(NF-1)}')
 
             if [ "$AGE" -gt "$MAX_AGE_SECONDS" ]; then
-              echo "Cluster '$CLUSTER_NAME' is older than 72 hours. Initiating destruction..."
+              echo "============================================================"
+              echo "EXPIRED CLUSTER DETECTED: $CLUSTER_NAME"
+              echo "============================================================"
               
               mkdir -p "workspace_$CLUSTER_NAME"
               gsutil cp "$metadata_path" "workspace_$CLUSTER_NAME/metadata.json"
 
-              echo "Releasing Red Hat Entitlements to the pool..."
-              
-              ACCESS_TOKEN=$(curl -s -X POST https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token \
-                -d grant_type=refresh_token \
-                -d client_id=cloud-services \
-                -d refresh_token=$RH_API_TOKEN | jq -r .access_token)
-              
               CLUSTER_ID=$(jq -r .clusterID "workspace_$CLUSTER_NAME/metadata.json")
               
               if [ -n "$CLUSTER_ID" ] && [ "$CLUSTER_ID" != "null" ]; then
-                echo "Sending DELETE request to Red Hat API for ID: $CLUSTER_ID"
-                curl -s -X DELETE "https://api.openshift.com/api/clusters_mgmt/v1/clusters/$CLUSTER_ID" \
-                  -H "Authorization: Bearer $ACCESS_TOKEN"
-                echo "Successfully returned licenses."
+                echo "Releasing Red Hat Entitlements to the pool..."
+                
+                ACCESS_TOKEN=$(curl -s -X POST https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token \
+                  -d grant_type=refresh_token \
+                  -d client_id=cloud-services \
+                  -d refresh_token=$RH_API_TOKEN | jq -r .access_token)
+                
+                if [ "$ACCESS_TOKEN" != "null" ] && [ -n "$ACCESS_TOKEN" ]; then
+                  echo "Looking up Subscription ID for Cluster UUID: $CLUSTER_ID"
+                  
+                  SEARCH_RESPONSE=$(curl -s -X GET "https://api.openshift.com/api/clusters_mgmt/v1/clusters?search=external_id%3D%27${CLUSTER_ID}%27" \
+                    -H "Authorization: Bearer $ACCESS_TOKEN")
+                  
+                  SUBSCRIPTION_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.items[0].subscription.id')
+                  
+                  if [ "$SUBSCRIPTION_ID" != "null" ] && [ -n "$SUBSCRIPTION_ID" ]; then
+                    echo "Archiving Subscription ID: $SUBSCRIPTION_ID to return licenses..."
+                    
+                    # The kill-shot: Archives the subscription via the API
+                    curl -s -X PATCH "https://api.openshift.com/api/accounts_mgmt/v1/subscriptions/$SUBSCRIPTION_ID" \
+                      -H "Authorization: Bearer $ACCESS_TOKEN" \
+                      -H "Content-Type: application/json" \
+                      -d '{"status":"Archived"}'
+                      
+                    echo "Red Hat Subscription successfully archived."
+                  else
+                    echo "Subscription not found in Red Hat Inventory. It may already be archived."
+                  fi
+                else
+                  echo "ERROR: Failed to get Access Token from Red Hat SSO."
+                fi
               else
-                echo "Warning: No clusterID found. Skipping Red Hat API deregistration."
+                echo "Warning: No clusterID found in metadata.json. Skipping Red Hat API deregistration."
               fi
               
+              echo "Destroying Google Cloud VM infrastructure..."
               openshift-install destroy cluster --dir="workspace_$CLUSTER_NAME" --log-level=info
               
+              echo "🧹 Cleaning up GCS state bucket..."
               gsutil rm -r "$BUCKET/$CLUSTER_NAME/"
-              echo "Cluster '$CLUSTER_NAME' successfully destroyed."
+              
+              echo "Cleanup complete for '$CLUSTER_NAME'."
             else
               echo "Cluster '$CLUSTER_NAME' is safe. Age is $((AGE / 3600)) hours."
             fi
