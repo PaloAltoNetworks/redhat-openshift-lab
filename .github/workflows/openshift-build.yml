@@ -7,14 +7,6 @@ on:
         description: 'Name of your cluster (e.g., dev-lab-1)'
         required: true
         type: string
-      # worker_count:
-      #   description: 'Number of Worker Nodes'
-      #   required: true
-      #   default: '2'
-      #   type: choice
-      #   options:
-      #     - '1'
-      #     - '2'
       acknowledgment:
         description: 'NOTE: This cluster will be automatically deleted in 72 hours. Please reach out to Shrey Raut via Slack if you need it running longer. Acknowledge the same to continue the build.'
         required: true
@@ -62,6 +54,9 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           credentials_json: '${{ secrets.GCP_SA_CREDENTIALS }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
           
       - name: Map Credentials for OpenShift
         run: |
@@ -76,12 +71,39 @@ jobs:
           # In GitHub Actions, if you just run export VAR=VALUE in one step, the next step in your pipeline will forget it completely. 
           # You have to write variables to a special system file called $GITHUB_ENV to make them stick around for the whole job.
 
-      - name: Run OpenShift Installer
+      - name: Run OpenShift Installer & Lock Firewall
         run: |
-          openshift-install create cluster --dir=workspace --log-level=info
+          # 1. Get the GitHub Runner's temporary public IP
+          RUNNER_IP=$(curl -s ifconfig.me)
+          
+          # 2. Start a background job to lock down the firewall the moment it is created
+          (
+            echo "Waiting for GCP firewall rules to be created..."
+            while true; do
+              # Check if the API firewall rule exists yet
+              API_RULE=$(gcloud compute firewall-rules list --filter="name~'${{ inputs.cluster_name }}.*api$'" --format="value(name)")
+              
+              if [ ! -z "$API_RULE" ]; then
+                 echo "Rules found! Locking down to Runner IP: $RUNNER_IP"
+                 
+                 # Lock down the API rule (Port 6443)
+                 gcloud compute firewall-rules update $API_RULE --source-ranges="${RUNNER_IP}/32"
+                 
+                 # The Ingress rule takes a few more minutes to spawn, so we wait and patch that too
+                 sleep 60 
+                 INGRESS_RULE=$(gcloud compute firewall-rules list --filter="name~'${{ inputs.cluster_name }}.*ingress'" --format="value(name)")
+                 if [ ! -z "$INGRESS_RULE" ]; then
+                   gcloud compute firewall-rules update $INGRESS_RULE --source-ranges="${RUNNER_IP}/32"
+                 fi
+                 
+                 break
+              fi
+              sleep 30
+            done
+          ) &
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+          # 3. Kick off the actual OpenShift installation (takes ~40 mins)
+          openshift-install create cluster --dir=workspace --log-level=info
 
       - name: Upload Cluster Metadata to GCS
         if: always() 
