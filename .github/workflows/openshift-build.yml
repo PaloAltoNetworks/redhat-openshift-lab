@@ -7,14 +7,14 @@ on:
         description: 'Name of your cluster (e.g., dev-lab-1)'
         required: true
         type: string
-      worker_count:
-        description: 'Number of Worker Nodes'
-        required: true
-        default: '2'
-        type: choice
-        options:
-          - '1'
-          - '2'
+      # worker_count:
+      #   description: 'Number of Worker Nodes'
+      #   required: true
+      #   default: '2'
+      #   type: choice
+      #   options:
+      #     - '1'
+      #     - '2'
       acknowledgment:
         description: 'NOTE: This cluster will be automatically deleted in 72 hours. Please reach out to Shrey Raut via Slack if you need it running longer. Acknowledge the same to continue the build.'
         required: true
@@ -44,7 +44,8 @@ jobs:
       - name: Generate install-config.yaml
         env:
           CLUSTER_NAME: ${{ inputs.cluster_name }}
-          WORKER_COUNT: ${{ inputs.worker_count }}
+          # Hardcoding worker count
+          WORKER_COUNT: 2
           # Hardcoding machine type and gcp region values
           WORKER_MACHINE_TYPE: 'e2-standard-4'
           GCP_REGION: 'us-central1'
