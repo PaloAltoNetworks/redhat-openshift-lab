@@ -71,39 +71,31 @@ jobs:
           # In GitHub Actions, if you just run export VAR=VALUE in one step, the next step in your pipeline will forget it completely. 
           # You have to write variables to a special system file called $GITHUB_ENV to make them stick around for the whole job.
 
-      - name: Run OpenShift Installer & Lock Firewall
+      - name: Run OpenShift Installer
         run: |
-          # 1. Get the GitHub Runner's temporary public IP
-          RUNNER_IP=$(curl -s ifconfig.me)
-          
-          # 2. Start a background job to lock down the firewall the moment it is created
-          (
-            echo "Waiting for GCP firewall rules to be created..."
-            while true; do
-              # Check if the API firewall rule exists yet
-              API_RULE=$(gcloud compute firewall-rules list --filter="name~'${{ inputs.cluster_name }}.*api$'" --format="value(name)")
-              
-              if [ ! -z "$API_RULE" ]; then
-                 echo "Rules found! Locking down to Runner IP: $RUNNER_IP"
-                 
-                 # Lock down the API rule (Port 6443)
-                 gcloud compute firewall-rules update $API_RULE --source-ranges="${RUNNER_IP}/32"
-                 
-                 # The Ingress rule takes a few more minutes to spawn, so we wait and patch that too
-                 sleep 60 
-                 INGRESS_RULE=$(gcloud compute firewall-rules list --filter="name~'${{ inputs.cluster_name }}.*ingress'" --format="value(name)")
-                 if [ ! -z "$INGRESS_RULE" ]; then
-                   gcloud compute firewall-rules update $INGRESS_RULE --source-ranges="${RUNNER_IP}/32"
-                 fi
-                 
-                 break
-              fi
-              sleep 30
-            done
-          ) &
-
-          # 3. Kick off the actual OpenShift installation (takes ~40 mins)
+          # 1. Run the official installer (allows workers to join cleanly)
           openshift-install create cluster --dir=workspace --log-level=info
+
+      - name: Lock Down Firewall Rules
+        if: success()
+        run: |
+          # 2. Get the GitHub Runner's temporary public IP
+          RUNNER_IP=$(curl -s ifconfig.me)
+          echo "Locking down cluster firewall rules to Runner IP: $RUNNER_IP"
+
+          # 3. Find and patch the API firewall rule (Port 6443)
+          API_RULE=$(gcloud compute firewall-rules list --filter="name~'${{ inputs.cluster_name }}.*api$'" --format="value(name)")
+          if [ ! -z "$API_RULE" ]; then
+            gcloud compute firewall-rules update $API_RULE --source-ranges="${RUNNER_IP}/32"
+            echo "Successfully locked down $API_RULE"
+          fi
+
+          # 4. Find and patch the Ingress firewall rule (Ports 80/443)
+          INGRESS_RULE=$(gcloud compute firewall-rules list --filter="name~'${{ inputs.cluster_name }}.*ingress'" --format="value(name)")
+          if [ ! -z "$INGRESS_RULE" ]; then
+            gcloud compute firewall-rules update $INGRESS_RULE --source-ranges="${RUNNER_IP}/32"
+            echo "Successfully locked down $INGRESS_RULE"
+          fi
 
       - name: Upload Cluster Metadata to GCS
         if: always() 
