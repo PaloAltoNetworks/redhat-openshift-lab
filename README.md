@@ -14,8 +14,8 @@ To balance cloud cost efficiency with cluster stability, all clusters are deploy
 
 | Component | Count | Instance Type | Description |
 | :--- | :--- | :--- | :--- |
-| **Control Plane** | 3 | `n2-standard-4` | Standard HA Control Plane nodes running etcd. |
-| **Worker Nodes** | 2 | `n2-standard-4` | **Hardcoded to 2 nodes.** Satisfies OpenShift router anti-affinity rules and prevents Ingress/OAuth operator resource starvation. |
+| **Control Plane** | 3 | `e2-standard-4` | Standard HA Control Plane nodes running etcd. |
+| **Worker Nodes** | 2 | `e2-standard-4` | **Hardcoded to 2 nodes.** Satisfies OpenShift router anti-affinity rules and prevents Ingress/OAuth operator resource starvation. |
 
 ---
 
