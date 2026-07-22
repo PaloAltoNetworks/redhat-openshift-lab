@@ -25,9 +25,12 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Download Cluster Metadata
+        env:
+          STATE_BUCKET: ${{ secrets.GCP_STATE_BUCKET }}
+          CLUSTER_NAME: ${{ inputs.cluster_name }}
         run: |
           # Pull the metadata file from the state bucket to get the exact GCP infraID
-          gsutil cp gs://${{ secrets.GCP_STATE_BUCKET }}/${{ inputs.cluster_name }}/metadata.json .
+          gsutil cp "gs://${STATE_BUCKET}/${CLUSTER_NAME}/metadata.json" .
           
       - name: Update Firewall Rule
         run: |
