@@ -8,6 +8,17 @@ This repository uses GitHub Actions to automate the `openshift-install` process,
 
 ---
 
+## Lab Architecture & Specs
+
+To balance cloud cost efficiency with cluster stability, all clusters are deployed with a standardized footprint:
+
+| Component | Count | Instance Type | Description |
+| :--- | :--- | :--- | :--- |
+| **Control Plane** | 3 | `n2-standard-4` | Standard HA Control Plane nodes running etcd. |
+| **Worker Nodes** | 2 | `n2-standard-4` | **Hardcoded to 2 nodes.** Satisfies OpenShift router anti-affinity rules and prevents Ingress/OAuth operator resource starvation. |
+
+---
+
 ## How to Provision a Cluster
 
 You do not need to clone this repository or run any Terraform/CLI commands locally to get a cluster.
@@ -17,11 +28,28 @@ You do not need to clone this repository or run any Terraform/CLI commands local
 3. On the right side of the screen, click the **Run workflow** dropdown button.
 4. Fill out the form:
    * **Cluster Name:** Provide a unique, identifiable name (e.g., `shrey-ocp-test-1`).
-   * **Worker Count:** Select the number of worker nodes you need.
    * **Acknowledgment:** You must check the box acknowledging the 72-hour automated deletion policy to proceed.
 5. Click the green **Run workflow** button. 
 
-*Note: The installation process typically takes 35 to 45 minutes to complete.*
+> **Note:** The installation process typically takes **35 to 45 minutes** to complete.
+
+---
+
+## Managing Network Access (JIT Firewall)
+
+By default, cluster firewall is open to the world. To avoid interruption, and termination of the cluster, you must run the Just-In-Time (JIT) access workflow right after deploying the cluster.
+
+### Running the "Secure Cluster Access" Workflow
+
+Whenever your local IP changes or you join/leave a corporate VPN, run this workflow to update the GCP firewall rules:
+
+1. Go to the **[Actions](../../actions)** tab.
+2. Select **Secure Cluster Access** from the left sidebar.
+3. Click **Run workflow**.
+4. Enter your **Cluster Name** and your current public IP address (just the IP, e.g., `203.0.113.25`).
+5. Click **Run workflow**.
+
+Once complete, GCP firewall rules for both the API (`tcp:6443`) and Ingress Load Balancer (`tcp:80,443`) will be updated to allow your traffic through.
 
 ---
 
