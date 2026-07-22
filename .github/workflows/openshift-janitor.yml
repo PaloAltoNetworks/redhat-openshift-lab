@@ -57,7 +57,7 @@ jobs:
 
             CLUSTER_NAME=$(echo "$metadata_path" | awk -F'/' '{print $(NF-1)}')
 
-            if [ "$AGE" -gt "$MAX_AGE_SECONDS" ]; then
+            # if [ "$AGE" -gt "$MAX_AGE_SECONDS" ]; then
               echo "============================================================"
               echo "EXPIRED CLUSTER DETECTED: $CLUSTER_NAME"
               echo "============================================================"
