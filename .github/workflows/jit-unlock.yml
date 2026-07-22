@@ -1,0 +1,39 @@
+name: Unlock Cluster Access
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: 'Name of the cluster you want to access'
+        required: true
+        type: string
+      developer_ip:
+        description: 'Your current public IP address (e.g., 203.0.113.5)'
+        required: true
+        type: string
+
+jobs:
+  update-firewall:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_CREDENTIALS }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Download Cluster Metadata
+        run: |
+          # Pull the metadata file from the state bucket to get the exact GCP infraID
+          gsutil cp gs://${{ secrets.GCP_STATE_BUCKET }}/${{ inputs.cluster_name }}/metadata.json .
+          
+      - name: Update Firewall Rule
+        run: |
+          INFRA_ID=$(jq -r .infraID metadata.json)
+          echo "Updating firewall for $INFRA_ID to allow IP: ${{ inputs.developer_ip }}"
+          
+          gcloud compute firewall-rules update ${INFRA_ID}-api \
+            --source-ranges="${{ inputs.developer_ip }}/32" \
+            --project="${{ secrets.GCP_PROJECT_ID }}"

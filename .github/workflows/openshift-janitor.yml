@@ -63,7 +63,10 @@ jobs:
               echo "============================================================"
               
               mkdir -p "workspace_$CLUSTER_NAME"
-              gsutil cp "$metadata_path" "workspace_$CLUSTER_NAME/metadata.json"
+
+              echo "Downloading full cluster state..."
+              gsutil cp -r "$BUCKET/$CLUSTER_NAME/*" "workspace_$CLUSTER_NAME/"
+              # gsutil cp "$metadata_path" "workspace_$CLUSTER_NAME/metadata.json"
 
               CLUSTER_ID=$(jq -r .clusterID "workspace_$CLUSTER_NAME/metadata.json")
               
@@ -106,7 +109,7 @@ jobs:
               echo "Destroying Google Cloud VM infrastructure..."
               openshift-install destroy cluster --dir="workspace_$CLUSTER_NAME" --log-level=info
               
-              echo "🧹 Cleaning up GCS state bucket..."
+              echo "Cleaning up GCS state bucket..."
               gsutil rm -r "$BUCKET/$CLUSTER_NAME/"
               
               echo "Cleanup complete for '$CLUSTER_NAME'."
