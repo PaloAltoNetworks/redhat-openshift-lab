@@ -113,7 +113,7 @@ jobs:
               gsutil rm -r "$BUCKET/$CLUSTER_NAME/"
               
               echo "Cleanup complete for '$CLUSTER_NAME'."
-            else
-              echo "Cluster '$CLUSTER_NAME' is safe. Age is $((AGE / 3600)) hours."
-            fi
-          done
+          #   else
+          #     echo "Cluster '$CLUSTER_NAME' is safe. Age is $((AGE / 3600)) hours."
+          #   fi
+          # done
