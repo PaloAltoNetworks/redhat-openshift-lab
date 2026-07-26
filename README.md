@@ -4,7 +4,7 @@
 
 Welcome to the self-service portal for provisioning ephemeral Red Hat OpenShift 4.x clusters on Google Cloud Platform (GCP). 
 
-This repository uses GitHub Actions to automate the `openshift-install` process, allowing team members to spin up customized lab environments on demand. To prevent runaway cloud costs, **all clusters are strictly capped at a 72-hour lifespan** and will be automatically destroyed by a background Janitor process
+This repository uses GitHub Actions to automate the `openshift-install` process, allowing team members to spin up customized lab environments on demand. To prevent runaway cloud costs, **all clusters are strictly capped at a 72-hour lifespan** and will be automatically destroyed by a background Janitor process.
 
 ---
 
