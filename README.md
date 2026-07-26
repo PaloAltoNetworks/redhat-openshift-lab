@@ -73,10 +73,13 @@ For security and simplicity, `kubeconfig` files are not distributed directly. To
 
 ## Automated Teardown (The 72-Hour Rule)
 
-To manage GCP billing, this repository runs a continuous Janitor pipeline. 
+To manage cloud costs and resource limits, this repository enforces a strict **72-hour lifespan** on all OpenShift lab clusters.
 
 * **Maximum Lifespan:** 72 Hours.
 * **How it works:** When your cluster is built, its creation metadata is logged in a secure GCP bucket. Every 24 hours, the Janitor script checks this bucket. If your cluster is older than 72 hours, it will automatically trigger an `openshift-install destroy cluster` command.
 * **Warning:** There is no backup of your lab data. Please ensure any important application manifests or configurations are committed to version control before the 72-hour window expires.
 
----
+**Need a cluster deleted before 72 hours?**
+If you have finished your testing early and want to free up resources, please request an early teardown:
+1. Ping **Shrey Nilesh Raut** via Slack.
+2. Provide the exact **Cluster Name** you want destroyed to request a `force` deletion for the created cluster.
