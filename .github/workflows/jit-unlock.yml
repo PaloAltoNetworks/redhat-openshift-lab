@@ -1,5 +1,5 @@
 # 
-ame: Secure Cluster Access (JIT)
+name: Secure Cluster Access (JIT)
 
 on:
   workflow_dispatch:
