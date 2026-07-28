@@ -1,24 +1,22 @@
-name: Secure Cluster Access with your public IP
+# 
+ame: Secure Cluster Access (JIT)
 
 on:
   workflow_dispatch:
     inputs:
       cluster_name:
-        description: 'Name of the cluster you want to access'
+        description: 'Name of the cluster you want to access (e.g., dev-lab-1)'
         required: true
         type: string
       developer_ip:
-        description: 'Your current public IP address (e.g., 203.0.113.5)'
+        description: 'Your public IP address (e.g., 203.0.113.45). Find it at ifconfig.me'
         required: true
         type: string
 
 jobs:
-  update-firewall:
+  grant-access:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -27,19 +25,45 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Download Cluster Metadata
+      - name: Download Kubeconfig from GCS
+        run: |
+          echo "Fetching keys for cluster: ${{ inputs.cluster_name }}"
+          # We only need the kubeconfig file, nothing else
+          gsutil cp gs://${{ secrets.GCP_STATE_BUCKET }}/${{ inputs.cluster_name }}/auth/kubeconfig ./kubeconfig
+          chmod 600 ./kubeconfig
+
+      - name: Install OpenShift CLI (oc)
+        run: |
+          wget -q https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz
+          tar xzf openshift-client-linux.tar.gz
+          sudo mv oc /usr/local/bin/
+
+      - name: Whitelist Developer IP via OpenShift
         env:
-          STATE_BUCKET: ${{ secrets.GCP_STATE_BUCKET }}
-          CLUSTER_NAME: ${{ inputs.cluster_name }}
+          KUBECONFIG: ./kubeconfig
+          DEV_IP: ${{ inputs.developer_ip }}
         run: |
-          # Pull the metadata file from the state bucket to get the exact GCP infraID
-          gsutil cp "gs://${STATE_BUCKET}/${CLUSTER_NAME}/metadata.json" .
-          
-      - name: Update Firewall Rule
-        run: |
-          INFRA_ID=$(jq -r .infraID metadata.json)
-          echo "Updating firewall for $INFRA_ID to allow IP: ${{ inputs.developer_ip }}"
-          
-          gcloud compute firewall-rules update ${INFRA_ID}-api \
-            --source-ranges="${{ inputs.developer_ip }}/32" \
-            --project="${{ secrets.GCP_PROJECT_ID }}"
+          echo "Authenticating to cluster and applying network patches for IP: $DEV_IP"
+
+          # We create JSON files for the patches to avoid bash quoting nightmares
+          cat <<EOF > patch-api.json
+          {"spec":{"clientAccess":{"allowedCIDRBlocks":["${DEV_IP}/32"]}}}
+          EOF
+
+          cat <<EOF > patch-ingress.json
+          {"spec":{"endpointPublishingStrategy":{"type":"LoadBalancerService","loadBalancer":{"allowedSourceRanges":["${DEV_IP}/32"]}}}}
+          EOF
+
+          # 1. Patch the API Server (Port 6443)
+          echo "Patching API Server..."
+          oc patch apiserver cluster --type=merge --patch-file patch-api.json
+
+          # 2. Patch the Ingress Controller (Web Console - Port 443)
+          echo "Patching Ingress Controller..."
+          oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --patch-file patch-ingress.json
+
+          echo "======================================================"
+          echo "SUCCESS! OpenShift operators are now updating GCP."
+          echo "Wait ~3 minutes for the GCP Load Balancers to update,"
+          echo "then you will have access to the Web Console and CLI."
+          echo "======================================================"
