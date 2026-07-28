@@ -76,31 +76,36 @@ jobs:
           # 1. Run the official installer (allows workers to join cleanly)
           openshift-install create cluster --dir=workspace --log-level=info
 
-      - name: Lock Down Firewall Rules
-        if: success()
-        run: |
-          # 2. Get the GitHub Runner's temporary public IP
-          RUNNER_IP=$(curl -s ifconfig.me)
-          echo "Locking down cluster firewall rules to Runner IP: $RUNNER_IP"
+      # - name: Lock Down Firewall Rules
+      #   if: success()
+      #   run: |
+      #     # 2. Get the GitHub Runner's temporary public IP
+      #     RUNNER_IP=$(curl -s ifconfig.me)
+      #     echo "Locking down cluster firewall rules to Runner IP: $RUNNER_IP"
 
-          # 3. Find and patch the API firewall rule (Port 6443)
-          API_RULE=$(gcloud compute firewall-rules list --filter="name~'${{ inputs.cluster_name }}.*api$'" --format="value(name)")
-          if [ ! -z "$API_RULE" ]; then
-            gcloud compute firewall-rules update $API_RULE --source-ranges="${RUNNER_IP}/32"
-            echo "Successfully locked down $API_RULE"
-          fi
+      #     # 3. Find and patch the API firewall rule (Port 6443)
+      #     API_RULE=$(gcloud compute firewall-rules list --filter="name~'${{ inputs.cluster_name }}.*api$'" --format="value(name)")
+      #     if [ ! -z "$API_RULE" ]; then
+      #       gcloud compute firewall-rules update $API_RULE --source-ranges="${RUNNER_IP}/32"
+      #       echo "Successfully locked down $API_RULE"
+      #     fi
 
-          # 4. Find and patch the Ingress firewall rule (Ports 80/443)
-          INGRESS_RULE=$(gcloud compute firewall-rules list --filter="name~'${{ inputs.cluster_name }}.*ingress'" --format="value(name)")
-          if [ ! -z "$INGRESS_RULE" ]; then
-            gcloud compute firewall-rules update $INGRESS_RULE --source-ranges="${RUNNER_IP}/32"
-            echo "Successfully locked down $INGRESS_RULE"
-          fi
+      #     # 4. Find and patch the Ingress firewall rule (Ports 80/443)
+      #     INGRESS_RULE=$(gcloud compute firewall-rules list --filter="name~'${{ inputs.cluster_name }}.*ingress'" --format="value(name)")
+      #     if [ ! -z "$INGRESS_RULE" ]; then
+      #       gcloud compute firewall-rules update $INGRESS_RULE --source-ranges="${RUNNER_IP}/32"
+      #       echo "Successfully locked down $INGRESS_RULE"
+      #     fi
 
       - name: Upload Cluster Metadata to GCS
         if: always() 
         run: |
-          gsutil cp -r workspace/* gs://${{ secrets.GCP_STATE_BUCKET }}/${{ inputs.cluster_name }}/
+          # Print the contents of the workspace so we can prove the auth folder exists in the logs
+          echo "=== WORKSPACE CONTENTS ==="
+          ls -la workspace/
+          
+          # Sync the exact directory state to GCS
+          gsutil -m rsync -r workspace/ gs://${{ secrets.GCP_STATE_BUCKET }}/${{ inputs.cluster_name }}/
 
       - name: Output Login Credentials
         if: success()
@@ -121,3 +126,7 @@ jobs:
           echo "To use the CLI, log into the Web Console, click your"
           echo "username in the top right, and select 'Copy login command'."
           echo "======================================================"
+          echo "------------------------------------------------------"
+          echo "NOTE: By default, this cluster is not locked to your IP!"
+          echo "To secure it and gain access, run the 'Secure Cluster"
+          echo "Access (JIT)' workflow immediately after this finishes."
