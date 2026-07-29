@@ -92,13 +92,12 @@ jobs:
 
       - name: Secure Cluster to Developer IP
         env:
-          KUBECONFIG: auth/kubeconfig
           DEV_IP: ${{ inputs.developer_ip }}
           CLUSTER_NAME: ${{ inputs.cluster_name }}
         run: |
           echo "Securing cluster access to IP: $DEV_IP"
 
-          # 1. Install oc CLI (just in case it wasn't extracted with the installer)
+          # 1. Install oc CLI
           wget -q https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz
           tar xzf openshift-client-linux.tar.gz
           sudo mv oc /usr/local/bin/
@@ -113,7 +112,11 @@ jobs:
             echo "Warning: Could not find API firewall rule."
           fi
 
-          # 3. Patch the Ingress Controller (Web Console) via oc
+          # 3. Dynamically locate the kubeconfig file
+          export KUBECONFIG=$(find . -path "*/auth/kubeconfig" -type f | head -n 1)
+          echo "Found kubeconfig at: $KUBECONFIG"
+
+          # 4. Patch the Ingress Controller (Web Console) via oc
           echo "Locking Ingress Controller..."
           cat <<EOF > patch-ingress.json
           {"spec":{"endpointPublishingStrategy":{"type":"LoadBalancerService","loadBalancer":{"scope":"External","allowedSourceRanges":["${DEV_IP}/32"]}}}}
