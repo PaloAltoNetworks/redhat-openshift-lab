@@ -7,6 +7,10 @@ on:
         description: 'Name of your cluster (e.g., dev-lab-1)'
         required: true
         type: string
+      developer_ip:
+        description: 'Your public IP address (find it at ifconfig.me)'
+        required: true
+        type: string
       acknowledgment:
         description: 'NOTE: This cluster will be automatically deleted in 72 hours. Please reach out to Shrey Raut via Slack if you need it running longer. Acknowledge the same to continue the build.'
         required: true
@@ -76,27 +80,6 @@ jobs:
           # 1. Run the official installer (allows workers to join cleanly)
           openshift-install create cluster --dir=workspace --log-level=info
 
-      # - name: Lock Down Firewall Rules
-      #   if: success()
-      #   run: |
-      #     # 2. Get the GitHub Runner's temporary public IP
-      #     RUNNER_IP=$(curl -s ifconfig.me)
-      #     echo "Locking down cluster firewall rules to Runner IP: $RUNNER_IP"
-
-      #     # 3. Find and patch the API firewall rule (Port 6443)
-      #     API_RULE=$(gcloud compute firewall-rules list --filter="name~'${{ inputs.cluster_name }}.*api$'" --format="value(name)")
-      #     if [ ! -z "$API_RULE" ]; then
-      #       gcloud compute firewall-rules update $API_RULE --source-ranges="${RUNNER_IP}/32"
-      #       echo "Successfully locked down $API_RULE"
-      #     fi
-
-      #     # 4. Find and patch the Ingress firewall rule (Ports 80/443)
-      #     INGRESS_RULE=$(gcloud compute firewall-rules list --filter="name~'${{ inputs.cluster_name }}.*ingress'" --format="value(name)")
-      #     if [ ! -z "$INGRESS_RULE" ]; then
-      #       gcloud compute firewall-rules update $INGRESS_RULE --source-ranges="${RUNNER_IP}/32"
-      #       echo "Successfully locked down $INGRESS_RULE"
-      #     fi
-
       - name: Upload Cluster Metadata to GCS
         if: always() 
         run: |
@@ -106,6 +89,41 @@ jobs:
           
           # Sync the exact directory state to GCS
           gsutil -m rsync -r workspace/ gs://${{ secrets.GCP_STATE_BUCKET }}/${{ inputs.cluster_name }}/
+
+      - name: Secure Cluster to Developer IP
+        env:
+          KUBECONFIG: auth/kubeconfig
+          DEV_IP: ${{ inputs.developer_ip }}
+          CLUSTER_NAME: ${{ inputs.cluster_name }}
+        run: |
+          echo "Securing cluster access to IP: $DEV_IP"
+
+          # 1. Install oc CLI (just in case it wasn't extracted with the installer)
+          wget -q https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz
+          tar xzf openshift-client-linux.tar.gz
+          sudo mv oc /usr/local/bin/
+
+          # 2. Patch the API Server Firewall via gcloud
+          echo "Locking API Server Firewall..."
+          API_RULE=$(gcloud compute firewall-rules list --filter="name~'${CLUSTER_NAME}.*api$'" --format="value(name)")
+          if [ ! -z "$API_RULE" ]; then
+            gcloud compute firewall-rules update $API_RULE --source-ranges="${DEV_IP}/32"
+            echo "Successfully updated API firewall: $API_RULE"
+          else
+            echo "Warning: Could not find API firewall rule."
+          fi
+
+          # 3. Patch the Ingress Controller (Web Console) via oc
+          echo "Locking Ingress Controller..."
+          cat <<EOF > patch-ingress.json
+          {"spec":{"endpointPublishingStrategy":{"type":"LoadBalancerService","loadBalancer":{"scope":"External","allowedSourceRanges":["${DEV_IP}/32"]}}}}
+          EOF
+          
+          oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --patch-file patch-ingress.json
+          
+          echo "======================================================"
+          echo "Cluster successfully locked down to $DEV_IP!"
+          echo "======================================================"
 
       - name: Output Login Credentials
         if: success()
