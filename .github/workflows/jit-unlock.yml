@@ -1,4 +1,3 @@
-# 
 name: Secure Cluster Access (JIT)
 
 on:
@@ -17,6 +16,9 @@ jobs:
   grant-access:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -28,7 +30,6 @@ jobs:
       - name: Download Kubeconfig from GCS
         run: |
           echo "Fetching keys for cluster: ${{ inputs.cluster_name }}"
-          # We only need the kubeconfig file, nothing else
           gsutil cp gs://${{ secrets.GCP_STATE_BUCKET }}/${{ inputs.cluster_name }}/auth/kubeconfig ./kubeconfig
           chmod 600 ./kubeconfig
 
@@ -38,32 +39,36 @@ jobs:
           tar xzf openshift-client-linux.tar.gz
           sudo mv oc /usr/local/bin/
 
-      - name: Whitelist Developer IP via OpenShift
+      - name: Whitelist Developer IP via OpenShift and GCP
         env:
           KUBECONFIG: ./kubeconfig
           DEV_IP: ${{ inputs.developer_ip }}
+          CLUSTER_NAME: ${{ inputs.cluster_name }}
         run: |
-          echo "Authenticating to cluster and applying network patches for IP: $DEV_IP"
+          echo "Applying network patches for IP: $DEV_IP"
 
-          # We create JSON files for the patches to avoid bash quoting nightmares
-          cat <<EOF > patch-api.json
-          {"spec":{"clientAccess":{"allowedCIDRBlocks":["${DEV_IP}/32"]}}}
-          EOF
+          # 1. Patch the API Server Firewall via gcloud
+          # The API LB is a static GCP asset created by the installer, so we must use gcloud.
+          echo "Patching API Server Firewall..."
+          API_RULE=$(gcloud compute firewall-rules list --filter="name~'${CLUSTER_NAME}.*api$'" --format="value(name)")
+          if [ ! -z "$API_RULE" ]; then
+            gcloud compute firewall-rules update $API_RULE --source-ranges="${DEV_IP}/32"
+            echo "Successfully updated API firewall: $API_RULE"
+          else
+            echo "Error: Could not find API firewall rule."
+            exit 1
+          fi
 
-          cat <<EOF > patch-ingress.json
-          {"spec":{"endpointPublishingStrategy":{"type":"LoadBalancerService","loadBalancer":{"allowedSourceRanges":["${DEV_IP}/32"]}}}}
-          EOF
-
-          # 1. Patch the API Server (Port 6443)
-          echo "Patching API Server..."
-          oc patch apiserver cluster --type=merge --patch-file patch-api.json
-
-          # 2. Patch the Ingress Controller (Web Console - Port 443)
+          # 2. Patch the Ingress Controller (Web Console - Port 443) via oc
+          # OpenShift actively reconciles this, so we use oc patch. We must include scope: External.
           echo "Patching Ingress Controller..."
+          cat <<EOF > patch-ingress.json
+          {"spec":{"endpointPublishingStrategy":{"type":"LoadBalancerService","loadBalancer":{"scope":"External","allowedSourceRanges":["${DEV_IP}/32"]}}}}
+          EOF
+          
           oc patch ingresscontroller default -n openshift-ingress-operator --type=merge --patch-file patch-ingress.json
 
           echo "======================================================"
-          echo "SUCCESS! OpenShift operators are now updating GCP."
-          echo "Wait ~3 minutes for the GCP Load Balancers to update,"
-          echo "then you will have access to the Web Console and CLI."
+          echo "SUCCESS! Access granted."
+          echo "Wait ~3 minutes for the Load Balancers to update."
           echo "======================================================"
