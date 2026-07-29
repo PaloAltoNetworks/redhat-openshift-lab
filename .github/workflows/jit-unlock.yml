@@ -1,4 +1,4 @@
-name: Secure Cluster Access (JIT)
+name: Update Public IP
 
 on:
   workflow_dispatch:
