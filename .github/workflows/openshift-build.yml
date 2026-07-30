@@ -148,6 +148,3 @@ jobs:
           echo "username in the top right, and select 'Copy login command'."
           echo "======================================================"
           echo "------------------------------------------------------"
-          echo "NOTE: By default, this cluster is not locked to your IP!"
-          echo "To secure it and gain access, run the 'Secure Cluster"
-          echo "Access (JIT)' workflow immediately after this finishes."
