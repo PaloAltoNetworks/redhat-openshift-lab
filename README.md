@@ -28,28 +28,38 @@ You do not need to clone this repository or run any Terraform/CLI commands local
 3. On the right side of the screen, click the **Run workflow** dropdown button.
 4. Fill out the form:
    * **Cluster Name:** Provide a unique, identifiable name (e.g., `shrey-ocp-test-1`).
+   * **Allowed IPs / CIDRs:** Provide your public IP or a comma-separated list of team IPs/subnets (e.g., `203.0.113.45, 198.51.100.0/24`). Find your IP at [ifconfig.me](https://ifconfig.me).
    * **Acknowledgment:** You must check the box acknowledging the 72-hour automated deletion policy to proceed.
 5. Click the green **Run workflow** button. 
 
-> **Note:** The installation process typically takes **35 to 45 minutes** to complete.
+> **Note:** The installation process typically takes **45 to 50 minutes** to complete.
 
 ---
 
-## Managing Network Access (JIT Firewall)
+## Zero-Trust Security & Network Access
 
-By default, cluster firewall is open to the world. To avoid interruption, and termination of the cluster, you must run the Just-In-Time (JIT) access workflow right after deploying the cluster.
+Clusters are built with a **Zero-Trust Default Architecture**. Unlike standard OpenShift installs that expose administrative endpoints to `0.0.0.0/0`, this repository automatically enforces firewall lockdowns immediately upon deployment.
 
-### Running the "Secure Cluster Access" Workflow
+### How Network Lockdown Works
+At the end of the provisioning process, the pipeline automatically secures both external entry points using a hybrid network patch:
+1. **API Server (`tcp:6443`):** Patched at the GCP Infrastructure layer using `gcloud` to lock static Load Balancer rules to your specified IP(s).
+2. **Ingress Controller / Web Console (`tcp:80,443`):** Patched natively via OpenShift Operator CRDs (`oc patch ingresscontroller default`) with `scope: External` to dynamically constrain GCP Load Balancer target ranges.
 
-Whenever your local IP changes or you join/leave a corporate VPN, run this workflow to update the GCP firewall rules:
+---
+
+## On-Demand Access Updates (JIT Workflow)
+
+Because your cluster is locked down at launch, you **do not** need to manually lock it after build completion.
+
+However, if your public IP changes (e.g., switching location, joining/leaving VPN) or you need to grant access to additional teammates later in the week, use the **Secure Cluster Access (JIT)** workflow:
 
 1. Go to the **[Actions](../../actions)** tab.
 2. Select **Secure Cluster Access** from the left sidebar.
 3. Click **Run workflow**.
-4. Enter your **Cluster Name** and your current public IP address (just the IP, e.g., `203.0.113.25`).
+4. Enter your **Cluster Name** and your updated **Comma-Separated IPs/CIDRs** (e.g., `203.0.113.45, 198.51.100.12`).
 5. Click **Run workflow**.
 
-Once complete, GCP firewall rules for both the API (`tcp:6443`) and Ingress Load Balancer (`tcp:80,443`) will be updated to allow your traffic through.
+> Allow **2–3 minutes** after running JIT for GCP Load Balancers and OpenShift operators to sync and re-allow your traffic.
 
 ---
 
