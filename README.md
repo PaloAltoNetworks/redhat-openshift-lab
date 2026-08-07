@@ -94,6 +94,11 @@ If you have finished your testing early and want to free up resources, please re
 1. Ping **Shrey Nilesh Raut** via Slack.
 2. Provide the exact **Cluster Name** you want destroyed to request a `force` deletion for the created cluster.
 
-**Currently in the works / shipping next:**
+---
+
+## Currently in the works / shipping next:
+
 * **Multi-IP Whitelisting**: Expanding the network patcher to accept comma-separated IP lists and CIDR subnets so teams can share cluster access or pair-program smoothly.
 * **Custom OpenShift Versions**: Adding version selection upfront so engineers can target specific OCP releases (or stable channels) instead of defaulting to latest.
+
+---
